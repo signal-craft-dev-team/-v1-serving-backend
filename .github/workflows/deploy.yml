@@ -18,6 +18,9 @@ jobs:
       contents: read
       packages: write
 
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -84,6 +87,16 @@ jobs:
     if: always()
 
     steps:
+      - name: Prepare message data
+        id: prep
+        run: |
+          # 커밋 메시지 첫 줄만 추출 후 JSON 안전하게 이스케이프
+          COMMIT_MSG=$(echo "${{ github.event.head_commit.message }}" | head -1 | sed 's/"/\\"/g')
+          echo "commit_msg=$COMMIT_MSG" >> $GITHUB_OUTPUT
+          # 이미지 digest에서 sha256: 제거 후 앞 12자리만 사용
+          DIGEST="${{ needs.build-and-push.outputs.digest }}"
+          echo "short_digest=${DIGEST#sha256:}" >> $GITHUB_OUTPUT
+
       - name: Send Slack message
         uses: slackapi/slack-github-action@v1.26.0
         with:
@@ -95,8 +108,25 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "${{ needs.deploy.result == 'success' && ':white_check_mark: *배포 성공*' || ':x: *배포 실패*' }}\n*서비스:* serving-backend\n*브랜치:* `${{ github.ref_name }}`\n*커밋:* <${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|${{ github.sha }}>\n*작업자:* ${{ github.actor }}"
+                    "text": "${{ needs.deploy.result == 'success' && ':white_check_mark: *배포 성공*' || ':x: *배포 실패*' }}\n*서비스:* serving-backend\n*브랜치:* `${{ github.ref_name }}`\n*작업자:* ${{ github.actor }}"
                   }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "*커밋 메시지*\n${{ steps.prep.outputs.commit_msg }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*커밋 SHA*\n<${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|`${{ github.sha }}`>"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*이미지 SHA*\n`${{ steps.prep.outputs.short_digest }}`"
+                    }
+                  ]
                 },
                 {
                   "type": "actions",
