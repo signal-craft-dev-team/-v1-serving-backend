@@ -4,6 +4,9 @@ on:
   push:
     branches: [dev]
 
+env:
+  IMAGE_NAME: ghcr.io/signal-craft-dev-team/202606-v1-serving-backend
+
 jobs:
   # ─────────────────────────────────────────
   # 1. Docker 빌드 & GHCR 푸시
@@ -36,8 +39,8 @@ jobs:
           context: .
           push: true
           tags: |
-            ghcr.io/202606${{ github.repository }}:latest
-            ghcr.io/202606${{ github.repository }}:${{ github.sha }}
+            ${{ env.IMAGE_NAME }}:latest
+            ${{ env.IMAGE_NAME }}:${{ github.sha }}
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
