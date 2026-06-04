@@ -221,3 +221,4 @@ __marimo__/
 
 .github/workflows/deploy.yml
 .github/*
+sc_models/

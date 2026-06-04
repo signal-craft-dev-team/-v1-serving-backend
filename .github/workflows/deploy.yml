@@ -6,6 +6,7 @@ on:
 
 env:
   IMAGE_NAME: ghcr.io/signal-craft-dev-team/202606-v1-serving-backend
+  DATABASE_URL: postgresql://${{ secrets.V1_GCP_VM_DB_APP_USER }}:${{ secrets.V1_GCP_VM_DB_APP_PASSWORD }}@${{ secrets.V1_GCP_VM_DB_HOST }}:5432/${{ secrets.V1_GCP_DB_NAME }}
 
 jobs:
   # ─────────────────────────────────────────
@@ -40,6 +41,8 @@ jobs:
         uses: docker/build-push-action@v6.15.0
         with:
           context: .
+          secrets: |
+            github_token=${{ secrets.MODEL_REPO_TOKEN }}
           push: true
           tags: |
             ${{ env.IMAGE_NAME }}:latest
@@ -74,6 +77,7 @@ jobs:
               --name serving-backend \
               --restart unless-stopped \
               -p 8000:8000 \
+              -e DATABASE_URL="${{ env.DATABASE_URL }}" \
               ${{ env.IMAGE_NAME }}:latest
             docker image prune -f
 
