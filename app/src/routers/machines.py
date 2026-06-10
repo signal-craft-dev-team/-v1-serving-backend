@@ -42,11 +42,11 @@ class PeriodEnum(str, Enum):
     last_7d = "7d"
 
 
-_PERIOD_DELTA = {
-    PeriodEnum.last_24h: timedelta(hours=24),
-    PeriodEnum.last_3d:  timedelta(days=3),
-    PeriodEnum.last_5d:  timedelta(days=5),
-    PeriodEnum.last_7d:  timedelta(days=7),
+_PERIOD_START_DAYS = {
+    PeriodEnum.last_24h: 0,  # 오늘 자정
+    PeriodEnum.last_3d:  2,  # 2일 전 자정 (오늘 포함 3일)
+    PeriodEnum.last_5d:  4,
+    PeriodEnum.last_7d:  6,
 }
 
 _PERIOD_BUCKET_MINUTES = {
@@ -211,7 +211,9 @@ async def get_machine_detail(machine_id: UUID, period: PeriodEnum, request: Requ
     if not machine_row:
         raise HTTPException(status_code=404, detail="해당 머신을 찾을 수 없습니다.")
 
-    period_start = now - _PERIOD_DELTA[period]
+    now_kst = now.astimezone(KST)
+    today_midnight_kst = now_kst.replace(hour=0, minute=0, second=0, microsecond=0)
+    period_start = today_midnight_kst - timedelta(days=_PERIOD_START_DAYS[period])
     bucket_minutes = _PERIOD_BUCKET_MINUTES[period]
 
     history_rows = await conn.fetch(
