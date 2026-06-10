@@ -6,6 +6,16 @@ from fastapi import APIRouter, Request, HTTPException
 from pydantic import BaseModel
 from ..auth.deps import AuthDep
 
+KST = timezone(timedelta(hours=9))
+
+
+def _to_kst(dt: datetime | None) -> datetime | None:
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(KST)
+
 router = APIRouter()
 
 
@@ -114,7 +124,7 @@ def _build_segments(
             avg_score = sum(scores) / len(scores)
             state = "running" if avg_score >= 0.5 else "stopped"
         segments.append(StatusSegment(
-            bucket_start=bucket_start,
+            bucket_start=_to_kst(bucket_start),
             state=state,
             avg_score=round(avg_score, 3) if avg_score is not None else None,
         ))
@@ -156,7 +166,11 @@ async def get_machines(request: Request, ctx: AuthDep):
         ctx.customer_id,
     )
 
-    return MachinesResponse(machines=[dict(row) for row in rows])
+    machines = [
+        {**dict(row), "updated_at": _to_kst(row["updated_at"])}
+        for row in rows
+    ]
+    return MachinesResponse(machines=machines)
 
 
 # ─────────────────────────────────────────
@@ -213,7 +227,10 @@ async def get_machine_detail(machine_id: UUID, period: PeriodEnum, request: Requ
 
     segments = _build_segments(history_rows, period_start, bucket_minutes, now)
 
+    machine_data = dict(machine_row)
+    machine_data["status_updated_at"] = _to_kst(machine_data.get("status_updated_at"))
+
     return MachineDetailResponse(
-        **dict(machine_row),
+        **machine_data,
         status_segments=segments,
     )
